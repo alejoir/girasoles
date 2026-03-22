@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>✨ Girasoles para Melany ✨</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #a5d8ff 0%, #4dabf7 100%);
+            font-family: 'Georgia', serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .mensaje {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            opacity: 0;
+            transition: all 2s ease-in-out;
+            width: 90%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .mensaje p {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 20px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            color: #1c7ed6;
+            border: 2px solid #ffd43b;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            line-height: 1.5;
+        }
+
+        .instruccion {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+            animation: pulse 2s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+            100% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="mensaje" id="textoFinal">
+        <p>✨ “Melany Tobar, hoy tus girasoles llegaron aunque sea virtuales.” ✨</p>
+    </div>
+    <canvas id="lienzo"></canvas>
+    <div class="instruccion" id="guia">🌻 Toca la pantalla para florecer 🌻</div>
+</div>
+
+<script>
+    const canvas = document.getElementById('lienzo');
+    const ctx = canvas.getContext('2d');
+    const mensaje = document.getElementById('textoFinal');
+    const guia = document.getElementById('guia');
+
+    let ancho, alto, centroX, centroY;
+    let progreso = 0;
+    let meta = 0;
+    let flores = [];
+    let particulas = [];
+    let tiempo = 0;
+
+    class Flor {
+        constructor(xOff, yOff, r, retraso, angBase) {
+            this.xOff = xOff;
+            this.yOff = yOff;
+            this.r = r;
+            this.retraso = retraso;
+            this.angBase = angBase;
+            this.colorP1 = `hsl(45, 100%, ${60 + Math.random()*10}%)`;
+            this.colorP2 = `hsl(50, 100%, 50%)`;
+        }
+
+        dibujar(p) {
+            let op = Math.max(0, Math.min(1, (p - this.retraso) * 2.5));
+            if (op <= 0) return;
+
+            // Balanceo suave
+            let oscilacion = Math.sin(tiempo * 0.002 + this.retraso * 10) * 5;
+            let x = centroX + this.xOff + oscilacion;
+            let y = centroY + this.yOff;
+
+            ctx.save();
+            ctx.globalAlpha = op;
+            ctx.translate(x, y);
+            ctx.rotate(this.angBase + (oscilacion * 0.01));
+
+            // Pétalos
+            const numPetalos = 22;
+            for (let i = 0; i < numPetalos; i++) {
+                ctx.rotate((Math.PI * 2) / numPetalos);
+                let grad = ctx.createLinearGradient(0, 0, 0, this.r * op);
+                grad.addColorStop(0, this.colorP1);
+                grad.addColorStop(1, this.colorP2);
+                ctx.fillStyle = grad;
+                
+                ctx.beginPath();
+                ctx.ellipse(0, this.r * 0.6 * op, this.r * 0.3 * op, this.r * 0.7 * op, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "rgba(180, 120, 0, 0.2)";
+                ctx.stroke();
+            }
+
+            // Centro del girasol
+            ctx.beginPath();
+            ctx.arc(0, 0, this.r * 0.5 * op, 0, Math.PI * 2);
+            ctx.fillStyle = "#5c3d03";
+            ctx.fill();
+
+            // Semillas
+            ctx.fillStyle = "#3d2902";
+            for(let j=0; j<15; j++) {
+                let ang = j * 137.5;
+                let rad = (this.r * 0.3) * Math.sqrt(j/15) * op;
+                ctx.beginPath();
+                ctx.arc(Math.cos(ang)*rad, Math.sin(ang)*rad, 2 * op, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+            
+            // Tallo
+            ctx.save();
+            ctx.globalAlpha = op;
+            ctx.strokeStyle = "#2b8a3e";
+            ctx.lineWidth = 4;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x, y + this.r * 0.5);
+            ctx.quadraticCurveTo(centroX, centroY + 100, centroX, alto);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    function inicializar() {
+        ancho = window.innerWidth;
+        alto = window.innerHeight;
+        canvas.width = ancho;
+        canvas.height = alto;
+        centroX = ancho / 2;
+        centroY = alto * 0.7;
+
+        flores = [
+            new Flor(0, -180, 55, 0.1, 0),
+            new Flor(-70, -150, 48, 0.2, -0.2),
+            new Flor(75, -145, 50, 0.25, 0.2),
+            new Flor(-120, -80, 45, 0.4, -0.5),
+            new Flor(125, -75, 45, 0.45, 0.5),
+            new Flor(-40, -60, 42, 0.6, -0.1),
+            new Flor(45, -55, 43, 0.65, 0.1)
+        ];
+    }
+
+    function crearParticula(x, y) {
+        for (let i = 0; i < 10; i++) {
+            particulas.push({
+                x, y,
+                vx: (Math.random() - 0.5) * 5,
+                vy: (Math.random() - 0.5) * 5,
+                vida: 1,
+                c: `hsl(${Math.random() * 40 + 40}, 100%, 70%)`
+            });
+        }
+    }
+
+    function animar(timestamp) {
+        tiempo = timestamp;
+        ctx.clearRect(0, 0, ancho, alto);
+
+        // Progreso suave
+        if (progreso < meta) progreso += 0.015;
+
+        // Dibujar flores
+        flores.forEach(f => f.dibujar(progreso));
+
+        // Partículas
+        particulas.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.vida -= 0.02;
+            ctx.fillStyle = p.c;
+            ctx.globalAlpha = p.vida;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+            if (p.vida <= 0) particulas.splice(i, 1);
+        });
+
+        if (progreso > 0.9) {
+            mensaje.style.opacity = "1";
+            guia.style.opacity = "0";
+        }
+
+        requestAnimationFrame(animar);
+    }
+
+    function alTocar(e) {
+        let cx = e.touches ? e.touches[0].clientX : e.clientX;
+        let cy = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        if (meta < 1) {
+            meta += 0.2;
+            crearParticula(cx, cy);
+        }
+    }
+
+    window.addEventListener('mousedown', alTocar);
+    window.addEventListener('touchstart', alTocar);
+    window.addEventListener('resize', inicializar);
+
+    inicializar();
+    requestAnimationFrame(animar);
+</script>
+
+</body>
+</html>
